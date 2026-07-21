@@ -1,0 +1,9 @@
+.vscode/ 
+.settings/
+**/build
+**/cmake
+*.ld
+*.s
+*.clangd
+*.mxproject
+*.json
