@@ -4,12 +4,13 @@
 // #define LED_TEST
 // #define SERVO_TEST
 // #define ADC_TEST
-#define SPI_RECEIVE
-// #define SPI_TRANSMIT
+// #define SPI_RECEIVE
+#define SPI_TRANSMIT
 // #define UART_TEST
 // **** RECEIVER/TRANSMITTER ****
-// #define TRANSMITTER
-#define RECEIVER
+#define TRANSMITTER
+// #define RECEIVER 
+
 #if defined(LED_TEST) 
   #define LED_PIN PC13
 #endif
@@ -25,9 +26,11 @@
     /* SPI/NRF Libraries: */
     // NRF.h or nRF24L01.h (???)
     // SPI.h
-    #include <SPI.h>
-    #include <nRF24L01.h>
-    #include <RF24.h>
+    #include<SPI.h>
+    #include<nRF24L01.h>
+    #include<RF24.h>
+
+    #define LED_PIN PC13
 
     #define CSN  PB12 // Chip Select Not (CSN)
     #define CE   PB13 // Chip Enable
@@ -35,10 +38,9 @@
     #define MISO PB14 // Master In-Slave Out
     #define MOSI PB15 // Master Out-Slave In   
 
-    // SPIClass etx_spi(MOSI, MISO, SCLK);
-    RF24 radio(CE, CSN);
-    // RF24 radio(PB13, PB12);
-    // RF24 radio(PA3, PB12);
+    // nRF24 Connections:
+    RF24 radio(CE, CSN); // CE, CSN
+
     const byte address[6] = "00001";
   #endif
 
@@ -71,7 +73,10 @@
     RF24 radio(CE, CSN);
 
     const byte address[6] = "00001";
+    bool ledState = false;
 
+    unsigned long lastSendTime = 0;
+    const unsigned long interval = 2000; // Every 2 seconds
   #endif
 
 #endif
@@ -101,6 +106,10 @@ void setup() {
   #endif
 
   #if defined(SPI_TRANSMIT)
+    SPI.setSCLK(SCK);
+    SPI.setMISO(MISO);
+    SPI.setMOSI(MOSI);
+
     radio.begin();
     radio.openWritingPipe(address);
     radio.setPALevel(RF24_PA_MIN);
@@ -108,27 +117,16 @@ void setup() {
   #endif 
 
   #if defined(SPI_RECEIVE)
-    Serial.begin(115200);
-    while(!Serial);
-    Serial.println("Serial Established.");
-    SPI.begin();
-    Serial.println("SPI Established.");
-    radio.begin();
-    Serial.println("Radio Established.");
-    // etx_spi.setSCLK(SCLK);
-    // etx_spi.setMOSI(MOSI);
-    // etx_spi.setMISO(MISO);
-    // etx_spi.begin();
-    // pinMode(CSN, OUTPUT);
-    // digitalWrite(CSN, HIGH);
-    // Serial.println("SPI Established.");
-    // if(!radio.begin()) {
-    //   Serial.println("nRF24L01 hardware is not responding");
-    //   while(1);
-    // }
-    // radio.openReadingPipe(0, address);
-    // radio.setPALevel(RF24_PA_MIN);
-    // radio.startListening();
+    pinMode(LED_PIN, OUTPUT);  
+    SPI.setSCLK(SCK);
+    SPI.setMISO(MISO);
+    SPI.setMOSI(MOSI);
+
+    digitalWrite(LED_PIN, LOW);
+    radio.begin(); 
+    radio.openReadingPipe(1, address);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.startListening();
   #endif
 }
 
@@ -137,7 +135,7 @@ void loop() {
     digitalWrite(LED_PIN, HIGH);
     delay(1000);
     digitalWrite(LED_PIN, LOW);
-    delay(1000);
+    delay(500);
   #endif
 
   #if defined(SERVO_TEST)
@@ -173,19 +171,30 @@ void loop() {
   #endif
 
   #if defined(SPI_TRANSMIT)
-    const char text[] = "Hello World";
-    radio.write(&text, sizeof(text));
-    delay(1000);
+    unsigned long currentMillis = millis();
+    if(currentMillis - lastSendTime >= interval) {
+      lastSendTime = currentMillis; 
+      ledState = !ledState;
+      radio.write(&ledState, sizeof(ledState));
+      // delay(500);
+    }
+
   #endif
 
   #if defined(SPI_RECEIVE)
-    Serial.println("Works");
-    delay(1000);
-    // if(radio.available()) {
-    //   char text[32] = "";
-    //   radio.read(&text, sizeof(text));
-    //   Serial.println(text);
-    // }
+    // digitalWrite(LED_PIN, HIGH);
+    // delay(150);
+    // digitalWrite(LED_PIN, LOW);
+    // delay(500);
+    if(radio.available()) {
+      digitalWrite(LED_PIN, HIGH);
+      delay(150);
+      digitalWrite(LED_PIN, LOW);
+      delay(500);
+      // bool state = false;
+      // radio.read(&state, sizeof(state));
+      // digitalWrite(LED_PIN, state ? HIGH : LOW);
+    }
   #endif
 }
 
